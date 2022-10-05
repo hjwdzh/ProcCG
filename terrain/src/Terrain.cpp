@@ -1,17 +1,31 @@
 #include "Terrain.h"
 
-void Terrain::UpdateElementMask(cv::Mat imgMask, float weight)
+void Terrain::UpdateElementMask(cv::Mat imgMask, cv::Mat directionGuide, double weight)
 {
 	if (elementMask.cols == 0) {
-		elementMask = cv::Mat(imgMask.rows, imgMask.cols, CV_8U);
+		elementMask = cv::Mat::zeros(imgMask.rows, imgMask.cols, CV_8U);
 	}
 	if (weightMask.cols == 0) {
-		weightMask = cv::Mat(imgMask.rows, imgMask.cols, CV_32F);
+		weightMask = cv::Mat::zeros(imgMask.rows, imgMask.cols, CV_32F);
+	}
+	if (directionMask.cols == 0) {
+		directionMask = cv::Mat::zeros(imgMask.rows, imgMask.cols, CV_8UC3);
+	}
+	if (directionGuide.cols > 0) {
+		for (int i = 0; i < directionGuide.rows; ++i) {
+			for (int j = 0; j < directionGuide.cols; ++j) {
+				auto c = directionGuide.at<cv::Vec3b>(i, j);
+				if (c.val[2] == 0)
+					directionMask.at<cv::Vec3b>(i, j) = cv::Vec3b(127, 127, 127);
+				else if (c.val[2] == 255)
+					directionMask.at<cv::Vec3b>(i, j) = c;
+			}
+		}
 	}
 	for (int i = 0; i < imgMask.rows; ++i) {
 		for (int j = 0; j < imgMask.cols; ++j) {
-			auto c = imgMask.at<cv::Vec3b>(i, j);
-			auto c0 = elementMask.at<unsigned char>(i, j);
+			cv::Vec3b c = imgMask.at<cv::Vec3b>(i, j);
+			unsigned char c0 = elementMask.at<unsigned char>(i, j);
 			int token = TokenFromScalar(c);
 			if (token == 0)
 				continue;
@@ -25,12 +39,35 @@ void Terrain::UpdateElementMask(cv::Mat imgMask, float weight)
 				c0 = c0 | token;
 				weightMask.at<float>(i, j) = weight;
 			}
-			elementMask.at<unsigned char>(i, j) = c0;
+			if (c0 != elementMask.at<unsigned char>(i, j)) {
+				elementMask.at<unsigned char>(i, j) = c0;
+			}
 		}
 	}
 	field = FlowField();
-	field.SetValidMask(elementMask);
-	field.SetGuidanceMask(elementMask, weightMask);
+	field.SetValidMask(elementMask, directionMask);
+	field.SetGuidanceMask(elementMask, weightMask, directionMask);
+	field.CreateOrientationField();
+}
+
+void Terrain::UpdateCurrentWeight(cv::Mat currentMask, double weight)
+{
+	for (int i = 0; i < currentMask.rows; ++i) {
+		for (int j = 0; j < currentMask.cols; ++j) {
+			if (currentMask.at<unsigned char>(i, j)) {
+				field.tensorFields_[0].weight1Rosy[i * currentMask.cols + j] = weight;
+			}
+		}
+	}
+	cv::Mat bigMask(currentMask.rows, currentMask.cols, CV_8U);
+	for (int i = 0; i < currentMask.rows; ++i) {
+		for (int j = 0; j < currentMask.cols; ++j) {
+			double w = field.tensorFields_[0].weight1Rosy[i * currentMask.cols + j];
+			if (w > 20) {
+				bigMask.at<unsigned char>(i, j) = 255;
+			}
+		}
+	}
 	field.CreateOrientationField();
 }
 
@@ -73,4 +110,71 @@ cv::Mat Terrain::VisualizeField()
 		}
 	}
 	return vis;
+}
+
+void Terrain::SaveToFile(FILE* fp)
+{
+	auto SaveImage = [](cv::Mat m, FILE* fp, int type, int channel) {
+		fwrite(&m.rows, sizeof(int), 1, fp);
+		fwrite(&m.cols, sizeof(int), 1, fp);
+		fwrite(&type, sizeof(int), 1, fp);
+		fwrite(&channel, sizeof(int), 1, fp);
+		if (m.rows > 0) {
+			int size = (type == 0) ? 1 : 4;
+			size *= channel;
+			fwrite(m.data, sizeof(unsigned char), size * m.rows * m.cols, fp);
+		}
+	};
+	fwrite(&version, sizeof(int), 1, fp);
+	if (version >= 1) {
+		printf("A...\n");
+		SaveImage(elementMask, fp, 0, 1);
+		printf("B...\n");
+		SaveImage(weightMask, fp, 1, 1);
+		printf("C...\n");
+		SaveImage(directionMask, fp, 0, 3);
+		printf("D...\n");
+		SaveImage(heightMask, fp, 1, 1);
+	}
+}
+
+void Terrain::LoadFromFile(FILE* fp)
+{
+	auto LoadImage = [](cv::Mat& m, FILE* fp) {
+		int rows, cols, type, channel;
+		fread(&rows, sizeof(int), 1, fp);
+		fread(&cols, sizeof(int), 1, fp);
+		fread(&type, sizeof(int), 1, fp);
+		fread(&channel, sizeof(int), 1, fp);
+		if (rows == 0) {
+			m = cv::Mat();
+			return;
+		}
+		if (type == 0) {
+			if (channel == 1)
+				m = cv::Mat(rows, cols, CV_8U);
+			else
+				m = cv::Mat(rows, cols, CV_8UC3);
+		}
+		else {
+			if (channel == 1)
+				m = cv::Mat(rows, cols, CV_32F);
+			else
+				m = cv::Mat(rows, cols, CV_32FC3);			
+		}
+		int size = (type == 0) ? 1 : 4;
+		size *= channel;
+		fread(m.data, sizeof(unsigned char), size * m.rows * m.cols, fp);
+	};
+	fread(&version, sizeof(int), 1, fp);
+	if (version >= 1) {
+		LoadImage(elementMask, fp);
+		LoadImage(weightMask, fp);
+		LoadImage(directionMask, fp);
+		LoadImage(heightMask, fp);
+	}
+	field = FlowField();
+	field.SetValidMask(elementMask, directionMask);
+	field.SetGuidanceMask(elementMask, weightMask, directionMask);
+	field.CreateOrientationField();
 }

@@ -68,11 +68,12 @@ void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, c
 
 cv::Mat RoadGenerator::DistanceField(const FlowField& field)
 {
+	cv::imwrite("roadfield.png", (field.validMask_ == 0) * 255);
 	cv::Mat distMask = cv::Mat::zeros(field.validMask_.rows, field.validMask_.cols, CV_32F);
 	std::queue<int> q;
 	for (int i = 0; i < distMask.rows; ++i) {
 		for (int j = 0; j < distMask.cols; ++j) {
-			if (field.validMask_.at<unsigned char>(i, j) < 2) {
+			if (field.validMask_.at<unsigned char>(i, j) >= 1) {
 				distMask.at<float>(i, j) = 0;
 				q.push(i * distMask.cols + j);
 			}
@@ -110,12 +111,12 @@ void RoadGenerator::GenerateRoad(const RoadGenParam& param, const FlowField& fie
 	cv::Mat majorMask = field.validMask_.clone();
 	cv::Mat minorMask = field.validMask_.clone();
 	for (int i = 0; i < majorMask.rows; ++i) {
-		for (int j = 0; j < minorMask.rows; ++j) {
-			if (majorMask.at<unsigned char>(i, j) < 2)
+		for (int j = 0; j < minorMask.cols; ++j) {
+			if (majorMask.at<unsigned char>(i, j) >= 1)
 				majorMask.at<unsigned char>(i, j) = 0;
 			else
 				majorMask.at<unsigned char>(i, j) = 2;
-			if (minorMask.at<unsigned char>(i, j) < 2)
+			if (minorMask.at<unsigned char>(i, j) >= 1)
 				minorMask.at<unsigned char>(i, j) = 0;
 			else
 				minorMask.at<unsigned char>(i, j) = 2;
@@ -168,7 +169,7 @@ void RoadGenerator::GenerateRoad(const RoadGenParam& param, const FlowField& fie
 				int y = line[i][1];
 				Vector2 dir = (i == 0) ? (line[i + 1] - line[i]).normalized() : (line[i] - line[i - 1]).normalized();
 				int isMajor = std::abs(field.tensorFields_[0].orientationField[y * majorMask.cols + x].dot(dir)) > 0.5;
-				if (field.validMask_.at<unsigned char>(y, x) != 2)
+				if (field.validMask_.at<unsigned char>(y, x) != 0)
 					return -1;
 				return (isMajor && majorMask.at<unsigned char>(y, x) > 0 ||
 					!isMajor && minorMask.at<unsigned char>(y, x) > 0) ? 1 : 0;

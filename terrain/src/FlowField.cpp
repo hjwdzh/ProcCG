@@ -115,7 +115,7 @@ void FlowField::ApplyMask(cv::Mat mask, cv::Mat maskWeight, int token,
 	}
 }
 
-void FlowField::SetValidMask(cv::Mat mask)
+void FlowField::SetValidMask(cv::Mat mask, cv::Mat directionMask)
 {
 	// initialize the tensorfield
 	tensorFields_.resize(1);
@@ -135,14 +135,39 @@ void FlowField::SetValidMask(cv::Mat mask)
 
 	ApplyMask(mask, 1e5 * cv::Mat::ones(mask.rows, mask.cols, CV_32F), 0x03,
 		boundaryDir_, tensorFields_[0].boundaryWeight, validMask_, 0);
+
+	if (directionMask.cols > 0) {
+		for (int i = 0; i < directionMask.rows; ++i) {
+			for (int j = 0; j < directionMask.cols; ++j) {
+				auto c = directionMask.at<cv::Vec3b>(i, j);
+				if (c.val[2] == 255 && validMask_.at<unsigned char>(i, j) != 0) {
+					Vector2 p((c.val[0] - 127), (c.val[1] - 127));
+					boundaryDir_[i * directionMask.cols + j] = p.normalized();
+					tensorFields_[0].boundaryWeight[i * directionMask.cols + j] = 1e5;
+				}
+			}
+		}
+	}
 }
 
-void FlowField::SetGuidanceMask(cv::Mat guidance, cv::Mat weight)
+void FlowField::SetGuidanceMask(cv::Mat guidance, cv::Mat weight, cv::Mat directionMask)
 {
 	cv::Mat validMask = cv::Mat::zeros(guidance.rows, guidance.cols, CV_8U);
 	ApplyMask(guidance, weight, 0x04, tensorFields_[0].soft1Rosy, tensorFields_[0].weight1Rosy, validMask, 1);
 	validMask = cv::Mat::zeros(guidance.rows, guidance.cols, CV_8U);
 	ApplyMask(guidance, weight, 0x08, tensorFields_[0].soft1Rosy, tensorFields_[0].weight1Rosy, validMask, 0);
+	if (directionMask.cols > 0) {
+		for (int i = 0; i < directionMask.rows; ++i) {
+			for (int j = 0; j < directionMask.cols; ++j) {
+				auto c = directionMask.at<cv::Vec3b>(i, j);
+				if (c.val[2] == 255 && (guidance.at<unsigned char>(i, j) & 0x0C)) {
+					Vector2 p((c.val[0] - 127), (c.val[1] - 127));
+					tensorFields_[0].soft1Rosy[i * directionMask.cols + j] = p.normalized();
+					tensorFields_[0].weight1Rosy[i * directionMask.cols + j] = 1e5;
+				}
+			}
+		}
+	}
 }
 
 void FlowField::CreateOrientationField(int nRosy)

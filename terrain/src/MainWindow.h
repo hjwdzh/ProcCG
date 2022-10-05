@@ -23,11 +23,13 @@ public:
 	ImageWidget *fieldViewer, *roadViewer, *prevViewer;
 	Drawer drawer;
 	Terrain terrain;
-
+	double weight_;
 	void UpdateFromDrawer();
 public slots:
 	void ChangeElement();
 	void TabSelected();
+	void SetValue(int value);
+	void UpdateWeight();
 	void LoadTerrain();
 	void SaveTerrain();
 };

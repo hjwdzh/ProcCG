@@ -3,6 +3,7 @@
 #include "ui_MainWindow.h"
 
 #include <QFileDialog>
+#include "RoadGenerator.h"
 
 MainWindow::MainWindow(QWidget* parent)
 : QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -12,7 +13,7 @@ MainWindow::MainWindow(QWidget* parent)
 	this->fieldViewer->SetGeometry(0, 0, 1300, 821);
 	this->roadViewer = new ImageWidget(this);
 	this->roadViewer->SetGeometry(0, 0, 1300, 821);
-	terrain.UpdateElementMask(this->fieldViewer->img_, 1.0);
+	terrain.UpdateElementMask(this->fieldViewer->img_, cv::Mat(), 1.0);
 	this->fieldViewer->SetImage(terrain.VisualizeField());
 	ui->tabWidget->clear();
 	ui->tabWidget->addTab(this->fieldViewer, "Field");
@@ -22,6 +23,8 @@ MainWindow::MainWindow(QWidget* parent)
 	drawer.SetCanvas(this->fieldViewer);
 	drawer.FinalizeCallback = std::bind(&MainWindow::UpdateFromDrawer, this);
 	prevViewer = this->fieldViewer;
+	ui->weightSlider->setValue(50);
+	weight_ = 0.5;
 
 	connect(ui->riverButton,SIGNAL(clicked()),this,SLOT(ChangeElement()));
 	connect(ui->grassButton,SIGNAL(clicked()),this,SLOT(ChangeElement()));
@@ -31,6 +34,9 @@ MainWindow::MainWindow(QWidget* parent)
 
 	connect(ui->actionLoadTerrain, SIGNAL(triggered()), this, SLOT(LoadTerrain()));
 	connect(ui->actionSaveTerrain, SIGNAL(triggered()), this, SLOT(SaveTerrain()));
+
+	connect(ui->weightSlider, SIGNAL(sliderMoved(int)), this, SLOT(SetValue(int)));
+	connect(ui->weightSlider, SIGNAL(sliderReleased()), this, SLOT(UpdateWeight()));
 }
 
 MainWindow::~MainWindow() {
@@ -87,7 +93,10 @@ void MainWindow::ChangeElement()
 void MainWindow::UpdateFromDrawer()
 {
 	if (ui->tabWidget->currentIndex() == 0) {
-		terrain.UpdateElementMask(this->fieldViewer->img_, 1e-1);
+		printf("Compute direction...\n");
+		cv::Mat direction = drawer.PrimitiveDirection();
+		printf("Element...\n");
+		terrain.UpdateElementMask(this->fieldViewer->img_, direction, weight_);
 		this->fieldViewer->SetImage(terrain.VisualizeField());
 	}
 	else if (ui->tabWidget->currentIndex() == 1) {
@@ -95,10 +104,28 @@ void MainWindow::UpdateFromDrawer()
 	}
 }
 
+void MainWindow::SetValue(int value) {
+	weight_ = 1.0f * exp(value / 15.0) / exp(50.0 / 15.0);
+	ui->weightLabel->setText(QString("weight: %1").arg(weight_));
+}
+
+void MainWindow::UpdateWeight()
+{
+	cv::Mat mask = drawer.PrimitiveMask();
+	terrain.UpdateCurrentWeight(mask, weight_);
+	this->fieldViewer->SetImage(terrain.VisualizeField());
+}
+
 void MainWindow::LoadTerrain()
 {
 	auto fileName = QFileDialog::getOpenFileName(this,
          tr("Open Terrain File "), QDir::currentPath(), tr("Terrain Files (*.trn)")).toStdString();
+	FILE* fp = fopen(fileName.c_str(), "rb");
+	terrain.LoadFromFile(fp);
+	fclose(fp);
+	if (ui->tabWidget->currentIndex() == 0) {
+		this->fieldViewer->SetImage(terrain.VisualizeField());
+	}
 }
 
 void MainWindow::SaveTerrain()
@@ -107,5 +134,7 @@ void MainWindow::SaveTerrain()
          tr("Open Terrain File "), QDir::currentPath(), tr("Terrain Files (*.trn)")).toStdString();
 	if (fileName.size() < 4 || fileName.substr(fileName.size() - 4) != ".trn")
 		fileName += ".trn";
-
+	FILE* fp = fopen(fileName.c_str(), "wb");
+	terrain.SaveToFile(fp);
+	fclose(fp);
 }

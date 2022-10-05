@@ -62,6 +62,52 @@ void Drawer::FinalizePrimitives()
 	FinalizeCallback();
 }
 
+cv::Mat Drawer::PrimitiveMask()
+{
+	cv::Mat tempImg = imageWidget_->img_.clone();
+	imageWidget_->img_ = cv::Mat::zeros(tempImg.rows, tempImg.cols, CV_8UC3);
+	cv::Mat res = DrawPrimitive(prevDrawerMode_);
+	imageWidget_->img_ = tempImg;
+	cv::Mat mask = cv::Mat::zeros(tempImg.rows, tempImg.cols, CV_8U);
+	for (int i = 0; i < res.rows; ++i) {
+		for (int j = 0; j < res.cols; ++j) {
+			auto a = res.at<cv::Vec3b>(i, j);
+			if (a.val[0] == color_.val[0] && a.val[1] == color_.val[1] && a.val[2] == color_.val[2]) {
+				mask.at<unsigned char>(i, j) = 1;
+			}
+		}
+	}
+	return mask;
+}
+
+cv::Mat Drawer::PrimitiveDirection()
+{
+	cv::Mat mask = PrimitiveMask();
+	cv::Mat direction(mask.rows, mask.cols, CV_8UC3);
+	for (int i = 0; i < direction.rows; ++i) {
+		for (int j = 0; j < direction.cols; ++j) {
+			if (prevDrawerMode_ == EMPTY || prevDrawerMode_ == LINE || prevDrawerMode_ == ELLIPSE) {
+				direction.at<cv::Vec3b>(i, j) = cv::Vec3b(127, 127, 0);
+			}
+			else if (mask.at<unsigned char>(i, j) == 0) {
+				direction.at<cv::Vec3b>(i, j) = cv::Vec3b(127, 127, 127);
+			}
+			else {
+				double angle = rotation_;
+				Vector2 xAxis(cos(angle / 180.0 * 3.141592654), sin(angle / 180.0 * 3.141592654));
+				if (prevDrawerMode_ == CIRCLE) {
+					Vector2 mid = (shapeList[0] + shapeList[1]) * 0.5;
+					xAxis = Vector2(j - mid[0], i - mid[1]);
+					xAxis.normalize();
+				}
+				direction.at<cv::Vec3b>(i, j) = cv::Vec3b(xAxis[0] * 127 + 127,
+					xAxis[1] * 127 + 127, 255);
+			}
+		}
+	}
+	return direction;
+}
+
 cv::Mat Drawer::DrawPrimitive(DrawerMode mode)
 {
 	cv::Mat tempImg = imageWidget_->img_.clone();

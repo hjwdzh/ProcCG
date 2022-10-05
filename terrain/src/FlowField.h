@@ -14,9 +14,9 @@ public:
 	// compute the position field with unit length as unit
 	void CreatePositionField(double unit);
 	// set the valid mask
-	void SetValidMask(cv::Mat mask);
+	void SetValidMask(cv::Mat mask, cv::Mat directionMask);
 	// set guidance mask
-	void SetGuidanceMask(cv::Mat guidance, cv::Mat weight);
+	void SetGuidanceMask(cv::Mat guidance, cv::Mat weight, cv::Mat directionMask);
 	// visualize the orientation field
 	cv::Mat VisualizeTensorField() {
 		return tensorFields_[0].VisualizeTensorField();

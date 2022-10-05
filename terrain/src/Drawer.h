@@ -16,6 +16,8 @@ public:
 	void FinalizePrimitives();					// finalize drawinng of shape to widget
 
 	cv::Mat DrawPrimitive(DrawerMode mode);		// given recorded transform/shape, draw primitive		
+	cv::Mat PrimitiveMask();
+	cv::Mat PrimitiveDirection();
 
 	void keyPressEvent(QKeyEvent* event);
 	void MouseMove();
