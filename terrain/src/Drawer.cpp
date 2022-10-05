@@ -5,6 +5,7 @@ Drawer::Drawer()
 	drawerMode_ = EMPTY;
 	operationMode_ = REST;
 	imageWidget_ = 0;
+	FinalizeCallback = []{};
 }
 
 void Drawer::SetCanvas(ImageWidget* imageWidget)
@@ -58,6 +59,7 @@ void Drawer::FinalizePrimitives()
 	cv::Mat tempImg = DrawPrimitive(prevDrawerMode_);
 	restImg_ = imageWidget_->img_.clone();
 	imageWidget_->SetImage(tempImg);
+	FinalizeCallback();
 }
 
 cv::Mat Drawer::DrawPrimitive(DrawerMode mode)
@@ -260,7 +262,10 @@ void Drawer::MouseMove()
 	else if (prevDrawerMode_ != EMPTY && operationMode_ != REST) {
 		opList.back() = pix;
 		imageWidget_->SetImage(restImg_);
-		FinalizePrimitives();
+
+		cv::Mat tempImg = DrawPrimitive(prevDrawerMode_);
+		restImg_ = imageWidget_->img_.clone();
+		imageWidget_->SetImage(tempImg);
 	}
 }
 

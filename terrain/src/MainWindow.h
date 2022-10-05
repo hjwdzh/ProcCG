@@ -5,6 +5,7 @@
 
 #include "Drawer.h"
 #include "ImageWidget.h"
+#include "Terrain.h"
 
 namespace Ui {
 class MainWindow;
@@ -19,10 +20,16 @@ public:
 	void keyPressEvent(QKeyEvent* event);
 	void keyReleaseEvent(QKeyEvent* event);
 	Ui::MainWindow* ui;
-	ImageWidget *riverViewer, *grassViewer, *prevViewer;
+	ImageWidget *fieldViewer, *roadViewer, *prevViewer;
 	Drawer drawer;
+	Terrain terrain;
+
+	void UpdateFromDrawer();
 public slots:
+	void ChangeElement();
 	void TabSelected();
+	void LoadTerrain();
+	void SaveTerrain();
 };
 
 #endif

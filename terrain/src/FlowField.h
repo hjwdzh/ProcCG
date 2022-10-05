@@ -15,6 +15,8 @@ public:
 	void CreatePositionField(double unit);
 	// set the valid mask
 	void SetValidMask(cv::Mat mask);
+	// set guidance mask
+	void SetGuidanceMask(cv::Mat guidance, cv::Mat weight);
 	// visualize the orientation field
 	cv::Mat VisualizeTensorField() {
 		return tensorFields_[0].VisualizeTensorField();
@@ -26,6 +28,10 @@ public:
 
 	cv::Mat validMask_;							// valid Mask
 	std::vector<TensorField> tensorFields_;		// tensor field as a pyramid
+private:
+	void ApplyMask(cv::Mat mask, cv::Mat maskWeight, int token,
+		std::vector<Vector2>& directions, std::vector<double>& directionWeights, cv::Mat& validMask_,
+		int vertical);
 };
 
 #endif

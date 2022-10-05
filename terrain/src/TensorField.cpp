@@ -57,16 +57,17 @@ int TensorField::Trace(Vector2 point, std::vector<Vector2>& polyline, double len
 
 cv::Mat TensorField::VisualizeTensorField()
 {
-	cv::Mat vis(height, width, CV_8U);
+	cv::Mat vis(height, width, CV_8UC3);
 	for (int i = 0; i < vis.rows; ++i) {
 		for (int j = 0; j < vis.cols; ++j) {
-			vis.at<unsigned char>(i, j) = 128;
+			vis.at<cv::Vec3b>(i, j) = cv::Vec3b(128, 128, 128);
 		}
 	}
-	for (int i = 0; i < width / 2; ++i) {
+	for (int i = 0; i < width; ++i) {
 		std::vector<Vector2> polyline;
 		Vector2 seed(rand() % width, rand() % height);
-		auto color = cv::Scalar(rand() % 128 + 64);
+		int c = rand() % 128 + 64;
+		auto color = cv::Scalar(c, c, c);
 		Trace(seed, polyline, 10000, rand() % 2, 2);
 		for (int j = 0; j < polyline.size() - 1; ++j) {
 			cv::Point2f p0(polyline[j][0], polyline[j][1]);
@@ -93,10 +94,9 @@ cv::Mat TensorField::OrientationField()
 void TensorField::OptimizeOrientationField()
 {
 	int diff[4][2] = {{0, 1}, {1, 0}, {-1, 0}, {0, -1}};
-	for (int steps = 0; steps < 3; ++steps) {
+	for (int steps = 0; steps < 2; ++steps) {
 		for (int di = 0; di < 2; ++di) {
 			for (int dj = 0; dj < 2; ++dj) {
-
 #pragma omp parallel for
 				for (int i = 0; i < height / 2; ++i) {
 					for (int j = 0; j < width / 2; ++j) {

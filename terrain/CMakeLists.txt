@@ -29,11 +29,13 @@ add_executable(
 	src/MainWindow.h
 	src/MainWindow.cpp
 	src/MainWindow.ui
-	src/TensorField.h
-	src/TensorField.cpp
 	src/RoadGenerator.h
 	src/RoadGenerator.cpp
-	src/test_canvas.cpp
+	src/TensorField.h
+	src/TensorField.cpp
+	src/Terrain.h
+	src/Terrain.cpp
+	src/main.cpp
 )
 
 target_link_libraries(

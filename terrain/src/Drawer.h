@@ -23,6 +23,8 @@ public:
 	void MouseCancel();
 	void MouseClick();
 
+	std::function<void()> FinalizeCallback;
+
 	DrawerMode drawerMode_, prevDrawerMode_;	// the primitive shape that is drawing/drawed
 	OperationMode operationMode_;				// the current transform that is applying
 	
