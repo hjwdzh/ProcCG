@@ -18,11 +18,14 @@ struct Road
 	std::vector<std::vector<int> > polylines;			// arrays of endpoint indices as a line strip
 	std::vector<int> layers;							// layers of the road (size=polylines), minor = 0
 	std::vector<double> widths;							// road widths (size=polylines)
-	int width, height;
+	int width{0}, height{0};
+
+	void SaveToFile(FILE* fp);
+	void LoadFromFile(FILE* fp);
 
 	cv::Mat VisualizeRoadMap() {
 		cv::Mat vis = cv::Mat::zeros(height, width, CV_8UC3);
-		cv::Scalar colors[3] = {{255, 0, 0}, {0, 255, 0}, {0, 0, 255}};
+		cv::Scalar colors[3] = {{255, 255, 255}, {255, 200, 0}, {255, 165, 0}};
 		for (int i = 0; i < polylines.size(); ++i) {
 			for (int j = 0; j < polylines[i].size() - 1; ++j) {
 				auto p0 = coordinates[polylines[i][j]];
@@ -57,7 +60,6 @@ public:
 private:
 	void RasterizePolyline(const PolyLine& line, cv::Mat majorMask, cv::Mat minorMask, double thickness, const FlowField& field);
 	void RoadGraphFromPolylines(const RoadGenParam& param, const std::vector<PolyLine>& polylines);
-
 	cv::Mat DistanceField(const FlowField& field);
 };
 #endif

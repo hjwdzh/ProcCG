@@ -3,6 +3,85 @@
 #include "DisajointTree.h"
 #include <unordered_set>
 
+void Road::SaveToFile(FILE* fp)
+{
+	int num = 0;
+	if (coordinates.empty()) {
+		fwrite(&num, sizeof(int), 1, fp);
+		return;
+	}
+	num = coordinates.size();
+	printf("Save %d\n", num);
+	fwrite(&num, sizeof(int), 1, fp);
+	fwrite(coordinates.data(), sizeof(Vector2), num, fp);
+	num = arcs.size();
+	fwrite(&num, sizeof(int), 1, fp);
+	for (auto& arc : arcs) {
+		std::vector<std::pair<int, int> > arcList(arc.begin(), arc.end());
+		num = arcList.size();
+		fwrite(&num, sizeof(int), 1, fp);
+		fwrite(arcList.data(), sizeof(std::pair<int, int>), num, fp);
+	}
+	num = polylines.size();
+	fwrite(&num, sizeof(int), 1, fp);
+	for (auto& polyline : polylines) {
+		num = polyline.size();
+		fwrite(&num, sizeof(int), 1, fp);
+		fwrite(polyline.data(), sizeof(int), polyline.size(), fp);
+	}
+	num = layers.size();
+	fwrite(&num, sizeof(int), 1, fp);
+	fwrite(layers.data(), sizeof(int), layers.size(), fp);
+	num = widths.size();
+	fwrite(&num, sizeof(int), 1, fp);
+	fwrite(widths.data(), sizeof(double), widths.size(), fp);
+	fwrite(&width, sizeof(int), 1, fp);
+	fwrite(&height, sizeof(int), 1, fp);
+}
+
+void Road::LoadFromFile(FILE* fp)
+{
+	int num = 0;
+	fread(&num, sizeof(int), 1, fp);
+	if (num == 0) {
+		*this = Road();
+		return;
+	}
+	printf("A...\n");
+	coordinates.resize(num);
+	fread(coordinates.data(), sizeof(Vector2), num, fp);
+	printf("B...\n");
+	fread(&num, sizeof(int), 1, fp);
+	arcs.resize(num);
+	for (auto& arc : arcs) {
+		std::vector<std::pair<int, int> > arcList;
+		fread(&num, sizeof(int), 1, fp);
+		arcList.resize(num);
+		fread(arcList.data(), sizeof(std::pair<int, int>), num, fp);
+		for (auto& info : arcList)
+			arc[info.first] = info.second;
+	}
+	printf("C...\n");
+	fread(&num, sizeof(int), 1, fp);
+	polylines.resize(num);
+	for (auto& polyline : polylines) {
+		fread(&num, sizeof(int), 1, fp);
+		polyline.resize(num);
+		fread(polyline.data(), sizeof(int), polyline.size(), fp);
+	}
+	printf("D...\n");
+	fread(&num, sizeof(int), 1, fp);
+	layers.resize(num);
+	fread(layers.data(), sizeof(int), layers.size(), fp);
+	fread(&num, sizeof(int), 1, fp);
+	printf("E...\n");
+	widths.resize(num);
+	fread(widths.data(), sizeof(double), widths.size(), fp);
+	fread(&width, sizeof(int), 1, fp);
+	fread(&height, sizeof(int), 1, fp);
+	printf("F...\n");
+}
+
 void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, cv::Mat minorMask,
 	double thickness, const FlowField& field)
 {
@@ -68,7 +147,6 @@ void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, c
 
 cv::Mat RoadGenerator::DistanceField(const FlowField& field)
 {
-	cv::imwrite("roadfield.png", (field.validMask_ == 0) * 255);
 	cv::Mat distMask = cv::Mat::zeros(field.validMask_.rows, field.validMask_.cols, CV_32F);
 	std::queue<int> q;
 	for (int i = 0; i < distMask.rows; ++i) {

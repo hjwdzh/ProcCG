@@ -2,6 +2,7 @@
 #define TERRAIN_TERRAIN_H_
 
 #include "FlowField.h"
+#include "RoadGenerator.h"
 #include <fstream>
 
 class Terrain
@@ -15,12 +16,14 @@ public:
 	cv::Mat heightMask; //float array
 
 	cv::Mat VisualizeField();
+	cv::Mat VisualizeElement();
 	int TokenFromScalar(const cv::Vec3b& c);
 
 	void SaveToFile(FILE* fp);
 	void LoadFromFile(FILE* fp);
 
 	FlowField field;
+	Road road;
 	int version{1};
 };
 

@@ -188,13 +188,13 @@ cv::Mat Drawer::DrawPrimitive(DrawerMode mode)
 		if (operationMode_ == SCALE && opList.size() == 2) {
 			thickness *= exp((opList[1][0] - opList[0][0]) / 100.0);
 		}
-		if (thickness < 1)
-			thickness = 1;
+		if (thickness < 0.5)
+			thickness = 0.5;
 
 		for (int i = 0; i < shapeList.size() - 1; ++i) {
 			cv::Point pt0(shapeList[i][0], shapeList[i][1]);
 			cv::Point pt1(shapeList[i + 1][0], shapeList[i + 1][1]);
-			cv::line(tempImg, pt0, pt1, color_, thickness);
+			cv::line(tempImg, pt0, pt1, color_, thickness * 2);
 		}
 	}
 	return tempImg;

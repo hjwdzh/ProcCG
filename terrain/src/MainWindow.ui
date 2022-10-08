@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1600</width>
-    <height>901</height>
+    <height>927</height>
    </rect>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -124,6 +124,114 @@
       <string>weight: 1.0</string>
      </property>
     </widget>
+   </widget>
+   <widget class="QGroupBox" name="roadGroupBox">
+    <property name="geometry">
+     <rect>
+      <x>1330</x>
+      <y>250</y>
+      <width>251</width>
+      <height>191</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Road Editor</string>
+    </property>
+    <widget class="QLineEdit" name="spaceEdit">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>30</y>
+       <width>113</width>
+       <height>21</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QLabel" name="spaceLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>30</y>
+       <width>101</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Average Space:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="stepLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>70</y>
+       <width>91</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Average Step:</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="stepEdit">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>70</y>
+       <width>113</width>
+       <height>21</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QLabel" name="layerLabel">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>110</y>
+       <width>58</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Layers:</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="layerEdit">
+     <property name="geometry">
+      <rect>
+       <x>120</x>
+       <y>110</y>
+       <width>113</width>
+       <height>21</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="genRoadButton">
+     <property name="geometry">
+      <rect>
+       <x>50</x>
+       <y>150</y>
+       <width>151</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Generate Road</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QLabel" name="infoLabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>850</y>
+      <width>1291</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Info:</string>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">

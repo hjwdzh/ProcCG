@@ -2,6 +2,7 @@
 #define TERRAINN_MAINWINDOW_H_
 
 #include <QMainWindow>
+#include <QLineEdit>
 
 #include "Drawer.h"
 #include "ImageWidget.h"
@@ -25,13 +26,24 @@ public:
 	Terrain terrain;
 	double weight_;
 	void UpdateFromDrawer();
+
+	void UpdateStatus(const char* info);
 public slots:
+	// field
 	void ChangeElement();
-	void TabSelected();
 	void SetValue(int value);
 	void UpdateWeight();
+	// road
+	void GenerateRoad();
+
+	void TabSelected();
+	void Defocus();
+
+	// menu
 	void LoadTerrain();
 	void SaveTerrain();
+
+
 };
 
 #endif

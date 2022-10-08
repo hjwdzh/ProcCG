@@ -112,6 +112,35 @@ cv::Mat Terrain::VisualizeField()
 	return vis;
 }
 
+cv::Mat Terrain::VisualizeElement()
+{
+	cv::Mat vis = cv::Mat::zeros(elementMask.rows, elementMask.cols, CV_8UC3);
+	for (int i = 0; i < elementMask.rows; ++i) {
+		for (int j = 0; j < elementMask.cols; ++j) {
+			int token = elementMask.at<unsigned char>(i, j) & 0x03;
+			if (token == 0)
+				vis.at<cv::Vec3b>(i, j) = cv::Vec3b(192, 192, 192);
+			if (token == 1)
+				vis.at<cv::Vec3b>(i, j) = cv::Vec3b(0x38, 0xB3, 0xD0);
+			if (token == 2)
+				vis.at<cv::Vec3b>(i, j) = cv::Vec3b(0x7E, 0xC8, 0x50);
+		}
+	}
+
+	if (road.width > 0) {
+		cv::Mat roadMap = road.VisualizeRoadMap();
+		for (int i = 0; i < roadMap.rows; ++i) {
+			for (int j = 0; j < roadMap.cols; ++j) {
+				cv::Vec3b c = roadMap.at<cv::Vec3b>(i, j);
+				if (c.val[0] == 0 && c.val[1] == 0 && c.val[2] == 0)
+					roadMap.at<cv::Vec3b>(i, j) = vis.at<cv::Vec3b>(i, j);
+			}
+		}
+		vis = roadMap;
+	}
+	return vis;
+}
+
 void Terrain::SaveToFile(FILE* fp)
 {
 	auto SaveImage = [](cv::Mat m, FILE* fp, int type, int channel) {
@@ -127,15 +156,12 @@ void Terrain::SaveToFile(FILE* fp)
 	};
 	fwrite(&version, sizeof(int), 1, fp);
 	if (version >= 1) {
-		printf("A...\n");
 		SaveImage(elementMask, fp, 0, 1);
-		printf("B...\n");
 		SaveImage(weightMask, fp, 1, 1);
-		printf("C...\n");
 		SaveImage(directionMask, fp, 0, 3);
-		printf("D...\n");
 		SaveImage(heightMask, fp, 1, 1);
 	}
+	road.SaveToFile(fp);
 }
 
 void Terrain::LoadFromFile(FILE* fp)
@@ -177,4 +203,5 @@ void Terrain::LoadFromFile(FILE* fp)
 	field.SetValidMask(elementMask, directionMask);
 	field.SetGuidanceMask(elementMask, weightMask, directionMask);
 	field.CreateOrientationField();
+	road.LoadFromFile(fp);
 }
