@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1600</width>
-    <height>927</height>
+    <height>923</height>
    </rect>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -17,7 +17,7 @@
       <x>10</x>
       <y>10</y>
       <width>1300</width>
-      <height>821</height>
+      <height>851</height>
      </rect>
     </property>
    </widget>
@@ -131,7 +131,7 @@
       <x>1330</x>
       <y>250</y>
       <width>251</width>
-      <height>191</height>
+      <height>381</height>
      </rect>
     </property>
     <property name="title">
@@ -218,6 +218,136 @@
      <property name="text">
       <string>Generate Road</string>
      </property>
+    </widget>
+    <widget class="QRadioButton" name="radioCross">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>190</y>
+       <width>61</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Cross</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radioStreet">
+     <property name="geometry">
+      <rect>
+       <x>90</x>
+       <y>190</y>
+       <width>61</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Street</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="buttonConnect">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>220</y>
+       <width>81</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Connect</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="buttonLabel">
+     <property name="geometry">
+      <rect>
+       <x>170</x>
+       <y>220</y>
+       <width>71</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Label</string>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="checkGroupSelect">
+     <property name="geometry">
+      <rect>
+       <x>160</x>
+       <y>190</y>
+       <width>85</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>GroupSel</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="buttonDelete">
+     <property name="geometry">
+      <rect>
+       <x>90</x>
+       <y>220</y>
+       <width>81</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Delete</string>
+     </property>
+    </widget>
+    <widget class="QGroupBox" name="groupLayer">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>260</y>
+       <width>231</width>
+       <height>61</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Layer</string>
+     </property>
+     <widget class="QRadioButton" name="checkLayer0">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>30</y>
+        <width>71</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Layer 0</string>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="checkLayer1">
+      <property name="geometry">
+       <rect>
+        <x>80</x>
+        <y>30</y>
+        <width>71</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Layer 1</string>
+      </property>
+     </widget>
+     <widget class="QRadioButton" name="checkLayer2">
+      <property name="geometry">
+       <rect>
+        <x>150</x>
+        <y>30</y>
+        <width>71</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Layer 2</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QLabel" name="infoLabel">

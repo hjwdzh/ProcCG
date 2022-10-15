@@ -1,5 +1,5 @@
 #include "RoadGenerator.h"
-
+#include "Triangulate.h"
 #include "DisajointTree.h"
 #include <unordered_set>
 
@@ -11,7 +11,6 @@ void Road::SaveToFile(FILE* fp)
 		return;
 	}
 	num = coordinates.size();
-	printf("Save %d\n", num);
 	fwrite(&num, sizeof(int), 1, fp);
 	fwrite(coordinates.data(), sizeof(Vector2), num, fp);
 	num = arcs.size();
@@ -47,10 +46,8 @@ void Road::LoadFromFile(FILE* fp)
 		*this = Road();
 		return;
 	}
-	printf("A...\n");
 	coordinates.resize(num);
 	fread(coordinates.data(), sizeof(Vector2), num, fp);
-	printf("B...\n");
 	fread(&num, sizeof(int), 1, fp);
 	arcs.resize(num);
 	for (auto& arc : arcs) {
@@ -61,7 +58,6 @@ void Road::LoadFromFile(FILE* fp)
 		for (auto& info : arcList)
 			arc[info.first] = info.second;
 	}
-	printf("C...\n");
 	fread(&num, sizeof(int), 1, fp);
 	polylines.resize(num);
 	for (auto& polyline : polylines) {
@@ -69,17 +65,14 @@ void Road::LoadFromFile(FILE* fp)
 		polyline.resize(num);
 		fread(polyline.data(), sizeof(int), polyline.size(), fp);
 	}
-	printf("D...\n");
 	fread(&num, sizeof(int), 1, fp);
 	layers.resize(num);
 	fread(layers.data(), sizeof(int), layers.size(), fp);
 	fread(&num, sizeof(int), 1, fp);
-	printf("E...\n");
 	widths.resize(num);
 	fread(widths.data(), sizeof(double), widths.size(), fp);
 	fread(&width, sizeof(int), 1, fp);
 	fread(&height, sizeof(int), 1, fp);
-	printf("F...\n");
 }
 
 void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, cv::Mat minorMask,
@@ -97,7 +90,7 @@ void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, c
 			continue;
 		Vector2 refD = (line[i + 1] - line[i]).normalized();
 		Vector2 tarD = field.tensorFields_[0].orientationField[id];
-		if (std::abs(tarD.dot(refD)) < 0.5) {
+		if (std::abs(tarD.dot(refD)) < 0.717) {
 			visited[id] = Vector2(-tarD[1], tarD[0]);
 			minorMask.at<unsigned char>(y, x) = 0;
 		} else {
@@ -126,15 +119,15 @@ void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, c
 			// for [0, 0.5 * thickness], set it as 0 (no road)
 			// for [0.5 * thickness, thickness] set it as 1 (should not seed it) 
 			Vector2 tarD = field.tensorFields_[0].orientationField[id];
-			if (std::abs(refD.dot(tarD)) < 0.5) {
+			if (std::abs(refD.dot(tarD)) < 0.717) {
 				visited[id] = Vector2(-tarD[1], tarD[0]);
-				if (info[2] < thickness * 0.3)
+				if (info[2] < thickness * 0.5)
 					minorMask.at<unsigned char>(ny, nx) = 0;
 				else if (minorMask.at<unsigned char>(ny, nx) > 0)
 					minorMask.at<unsigned char>(ny, nx) = 1;
 			} else {
 				visited[id] = tarD;
-				if (info[2] < thickness * 0.3)
+				if (info[2] < thickness * 0.5)
 					majorMask.at<unsigned char>(ny, nx) = 0;
 				else if (majorMask.at<unsigned char>(ny, nx) > 0)
 					majorMask.at<unsigned char>(ny, nx) = 1;
@@ -148,6 +141,8 @@ void RoadGenerator::RasterizePolyline(const PolyLine& line, cv::Mat majorMask, c
 cv::Mat RoadGenerator::DistanceField(const FlowField& field)
 {
 	cv::Mat distMask = cv::Mat::zeros(field.validMask_.rows, field.validMask_.cols, CV_32F);
+	int dx[] = {-1, 0, 1, 0};
+	int dy[] = {0, 1, 0, -1};
 	std::queue<int> q;
 	for (int i = 0; i < distMask.rows; ++i) {
 		for (int j = 0; j < distMask.cols; ++j) {
@@ -155,13 +150,30 @@ cv::Mat RoadGenerator::DistanceField(const FlowField& field)
 				distMask.at<float>(i, j) = 0;
 				q.push(i * distMask.cols + j);
 			}
-			else
-				distMask.at<float>(i, j) = 1e30;
+			else {
+				bool softBoundary = false;
+				if (field.tensorFields_[0].weight1Rosy[i * distMask.cols + j] > 0) {
+					for (int k = 0; k < 4; ++k) {
+						int ni = i + dy[k];
+						int nj = j + dx[k];
+						if (ni >= 0 && nj >= 0 && ni < distMask.rows && nj < distMask.cols &&
+							field.tensorFields_[0].weight1Rosy[ni * distMask.cols + nj] == 0) {
+							softBoundary = true;
+							break;
+						}
+					}
+				}
+				if (softBoundary) {
+					distMask.at<float>(i, j) = 0;
+					q.push(i * distMask.cols + j);
+				}
+				else {
+					distMask.at<float>(i, j) = 1e30;
+				}
+			}
 		}
 	}
 	while (!q.empty()) {
-		int dx[] = {-1, 0, 1, 0};
-		int dy[] = {-1, 0, 1, 0};
 		int t = q.front();
 		q.pop();
 		int x = t % distMask.cols;
@@ -182,6 +194,8 @@ cv::Mat RoadGenerator::DistanceField(const FlowField& field)
 
 void RoadGenerator::GenerateRoad(const RoadGenParam& param, const FlowField& field)
 {
+	std::vector<Vector2> polylines;
+	field.tensorFields_[0].Trace(Vector2(0, 0), Vector2(field.validMask_.cols - 1, field.validMask_.rows - 1), polylines);
 	// initialize the minor and major eigen field mask
 	// 0: no road
 	// 1: potential road, do not allow to seed
@@ -225,7 +239,8 @@ void RoadGenerator::GenerateRoad(const RoadGenParam& param, const FlowField& fie
 	}
 
 	// sample polylines
-	std::vector<PolyLine> polylines;
+	std::vector<PolyLine> polylinesExtend;
+	std::vector<std::pair<int, int> > polylinesRange;
 	for (int seedId = 0; seedId < validCoords.size(); ++seedId) {
 		int isMajor = validCoords[seedId][2];
 		bool expand = true;
@@ -246,7 +261,7 @@ void RoadGenerator::GenerateRoad(const RoadGenParam& param, const FlowField& fie
 				int x = line[i][0];
 				int y = line[i][1];
 				Vector2 dir = (i == 0) ? (line[i + 1] - line[i]).normalized() : (line[i] - line[i - 1]).normalized();
-				int isMajor = std::abs(field.tensorFields_[0].orientationField[y * majorMask.cols + x].dot(dir)) > 0.5;
+				int isMajor = std::abs(field.tensorFields_[0].orientationField[y * majorMask.cols + x].dot(dir)) > 0.717;
 				if (field.validMask_.at<unsigned char>(y, x) != 0)
 					return -1;
 				return (isMajor && majorMask.at<unsigned char>(y, x) > 0 ||
@@ -256,24 +271,85 @@ void RoadGenerator::GenerateRoad(const RoadGenParam& param, const FlowField& fie
 			int l = s, r = s;
 			while (l > 0 && isValid(l) > 0) l -= 1;
 			while (r < line.size() && isValid(r) > 0) r += 1;
+			if (r - l < 1) continue;
+			polylinesExtend.push_back(line);
+			polylinesRange.push_back(std::make_pair(l, r));
 			int top = 0;
 			for (int i = l; i < r; ++i) {
 				line[top++] = line[i];
 			}
-			if (top < 1)
-				continue;
 			line.resize(top);
 
 			// update the major/minor eigen field mask
-			polylines.push_back(line);
 			RasterizePolyline(line, majorMask, minorMask, param.minSpace, field);
 		}
+	}
+
+	std::vector<std::unordered_set<int> > roadMask(majorMask.rows * majorMask.cols);
+	for (int i = 0; i < polylinesExtend.size(); ++i) {
+		for (int j = polylinesRange[i].first; j < polylinesRange[i].second; ++j) {
+			auto p = polylinesExtend[i][j];
+			int x = p[0];
+			int y = p[1];
+			if (x < 0 || y < 0 || x >= majorMask.cols || y >= majorMask.rows)
+				continue;
+			roadMask[y * majorMask.cols + x].insert(i);
+		}
+	}
+	auto isExtensible = [&](const Vector2& p, int lineId) {
+		if (p[0] < 0 || p[1] < 0 || p[0] > majorMask.cols || p[1] >= majorMask.rows)
+			return -1;
+		int y = p[1], x = p[0];
+		if (field.validMask_.at<unsigned char>(y, x) != 0)
+			return -1;
+		auto& v = roadMask[y * majorMask.cols + x];
+		bool otherLine = false;
+		for (auto& l : v) {
+			if (l != lineId)
+				otherLine = true;
+		}
+		if (otherLine)
+			return 1;
+		return 0;
+	};
+	for (int i = 0; i < polylinesExtend.size(); ++i) {
+		int l = polylinesRange[i].first;
+		while (l > 0) {
+			int t = isExtensible(polylinesExtend[i][l], i);
+			if (t < 0) {
+				l += 1;
+				break;
+			}
+			l -= 1;
+			if (t != 0)
+				break;
+		}
+		int r = polylinesRange[i].second;
+		while (r < polylinesExtend[i].size()) {
+			int t = isExtensible(polylinesExtend[i][r], i);
+			if (t < 0)
+				break;
+			r += 1;
+			if (t != 0) {
+				r += 1;
+				break;
+			}
+		}
+		int top = 0;
+		for (int j = l; j < r; ++j) {
+			int x = polylinesExtend[i][j][0];
+			int y = polylinesExtend[i][j][1];
+			if (y < majorMask.rows && x < majorMask.cols && y >= 0 && x >= 0)
+				roadMask[y * majorMask.cols + x].insert(i);
+			polylinesExtend[i][top++] = polylinesExtend[i][j];
+		}
+		polylinesExtend[i].resize(top);
 	}
 
 	// graph from polylines
 	road.width = majorMask.cols;
 	road.height = majorMask.rows;
-	RoadGraphFromPolylines(param, polylines);
+	RoadGraphFromPolylines(param, polylinesExtend);
 }
 
 void RoadGenerator::RoadGraphFromPolylines(const RoadGenParam& param, const std::vector<PolyLine>& polylines)
@@ -457,43 +533,56 @@ void RoadGenerator::RoadGraphFromPolylines(const RoadGenParam& param, const std:
 
 void RoadGenerator::UpsampleRoadGraph(int fromLayer, int toLayer, int space)
 {
-	std::vector<int> visited(road.coordinates.size(), 0);
+	std::vector<int> visited(road.coordinates.size() * 2, 0);
 	std::vector<int> visitedPolylines(road.polylines.size(), 0);
 	std::vector<int> seeds;
 	for (int i = 0; i < road.coordinates.size(); ++i) {
 		if (!road.arcs[i].empty())
 			seeds.push_back(i);
 	}
+	std::vector<Vector2> orient(road.coordinates.size());
+	for (int i = 0; i < road.arcs.size(); ++i) {
+		for (auto& j : road.arcs[i]) {
+			orient[i] = (road.coordinates[j.first] - road.coordinates[i]).normalized();
+		}
+	}
 	std::random_shuffle(seeds.begin(), seeds.end());
-	for (int i = 0; i < seeds.size(); ++i) {
-		if (visited[seeds[i]] != 0)
+	for (int i = 0; i < seeds.size() * 2; ++i) {
+		int s = seeds[i / 2];
+		int it = i % 2;
+		if (visited[s * 2 + it] != 0)
 			continue;
 		int version = i + 1;
 		std::queue<std::pair<int, int> > q;
-		q.push(std::make_pair(seeds[i], 0));
+		q.push(std::make_pair(s * 2 + it, 0));
 		std::vector<int> seedList;
 		std::vector<int> polylineList;
 
-		seedList.push_back(seeds[i]);
-		for (auto& nj : road.arcs[seeds[i]]) {
+		seedList.push_back(s * 2 + it);
+		for (auto& nj : road.arcs[s]) {
 			if (road.layers[nj.second] != fromLayer)
 				continue;
-			int prev = seeds[i];
+			int prev = s;
 			int current = nj.first;
 			if (visitedPolylines[nj.second] != 0)
 				continue;
+			Vector2 d = (road.coordinates[current] - road.coordinates[prev]).normalized();
+			if (std::abs(d.dot(orient[s])) < 0.717 && it == 0 ||
+				std::abs(d.dot(orient[s])) > 0.717 && it == 1)
+				continue;
 			polylineList.push_back(nj.second);
 			while (true) {
-				q.push(std::make_pair(current, 0));
-				seedList.push_back(current);
-				Vector2 dir0 = road.coordinates[current] - road.coordinates[prev];
+				Vector2 dir0 = (road.coordinates[current] - road.coordinates[prev]).normalized();
+				int id = std::abs(dir0.dot(orient[current])) > 0.717 ? 0 : 1;
+				q.push(std::make_pair(current * 2 + id, 0));
+				seedList.push_back(current * 2 + id);
 				double bestDot = -1;
 				int next = -1;
 				int nextArc = -1;
 				for (auto& nk : road.arcs[current]) {
 					if (road.layers[nk.second] != fromLayer)
 						continue;
-					Vector2 dir1 = (road.coordinates[nk.first] - road.coordinates[current]);
+					Vector2 dir1 = (road.coordinates[nk.first] - road.coordinates[current]).normalized();
 					if (dir1.dot(dir0) > bestDot && visitedPolylines[nk.second] == 0) {
 						bestDot = dir1.dot(dir0);
 						next = nk.first;
@@ -509,6 +598,9 @@ void RoadGenerator::UpsampleRoadGraph(int fromLayer, int toLayer, int space)
 				}
 			}
 		}
+		if (seedList.size() < 2) {
+			continue;
+		}
 		int count = 0;
 		for (auto& s : seedList) {
 			if (visited[s] > 0)
@@ -517,31 +609,146 @@ void RoadGenerator::UpsampleRoadGraph(int fromLayer, int toLayer, int space)
 		if (count > seedList.size() * 0.6) {
 			continue;
 		}
-		for (auto& s : seedList)
+		for (auto& s : seedList) {
 			visited[s] = -version;
+		}
 		for (auto& p : polylineList)
 			visitedPolylines[p] = 1;
 		while (!q.empty()) {
 			auto info = q.front();
 			q.pop();
-			for (auto& nj : road.arcs[info.first]) {
-				if (road.layers[nj.second] != fromLayer)
-					continue;
-				if (std::abs(visited[nj.first]) != version) {
-					if (visited[nj.first] < 0)
-						visited[nj.first] = -version;
+			if (info.second == space)
+				continue;
+			int current = info.first / 2;
+			for (auto& nj : road.arcs[current]) {
+				int id = std::abs(orient[current].dot(orient[nj.first])) > 0.717 ? info.first % 2 :
+					(info.first + 1) % 2;
+				if (std::abs(visited[nj.first * 2 + id]) != version) {
+					if (visited[nj.first * 2 + id] < 0)
+						visited[nj.first * 2 + id] = -version;
 					else
-						visited[nj.first] = version;
+						visited[nj.first * 2 + id] = version;
 					if (info.second + 1 < space) {
-						q.push(std::make_pair(nj.first, info.second + 1));
+						q.push(std::make_pair(nj.first * 2 + id, info.second + 1));
 					}
 				}
 			}
 		}
 	}
+
 	for (int i = 0; i < visitedPolylines.size(); ++i) {
 		if (visitedPolylines[i] == 1) {
 			road.layers[i] = toLayer;
 		}
 	}
+}
+
+#include <set>
+
+void RoadGenerator::GeneratePositionGraph(const RoadGenParam& param, FlowField& field,
+	std::vector<Vector2>& points, std::vector<Vector2i>& links)
+{
+	field.CreatePositionField(param.minSpace);
+	int height = field.validMask_.rows;
+	int width = field.validMask_.cols;
+	cv::Mat mask = cv::Mat::zeros(height, width, CV_8U);
+
+	points.resize(height * width);
+	for (int i = 0; i < height; ++i) {
+		for (int j = 0; j < width; ++j) {
+			points[i * width + j] = field.tensorFields_[0].Position(i * width + j, param.minSpace);
+		}
+	}
+
+	DisajointTree tree(height * width);
+	//std::vector<std::pair<double, std::pair<int, int> > > edges;
+	for (int i = 0; i < height; ++i) {
+		for (int j = 0; j < width; ++j) {
+			int id0 = i * width + j;
+			Vector2 qx = field.tensorFields_[0].orientationField[id0];
+			Vector2 qy(-qx[1], qx[0]);
+			if (i < height - 1) {
+				int id1 = id0 + width;
+				double dx = (points[id1] - points[id0]).dot(qx);
+				double dy = (points[id1] - points[id0]).dot(qy);
+				if (std::abs(dx) < param.minSpace * 0.5 && std::abs(dy) < param.minSpace * 0.5)
+					tree.Merge(tree.Parent(id0), tree.Parent(id1));
+			}
+			if (j < width - 1) {
+				int id1 = id0 + 1;
+				double dx = (points[id1] - points[id0]).dot(qx);
+				double dy = (points[id1] - points[id0]).dot(qy);
+				if (std::abs(dx) < param.minSpace * 0.5 && std::abs(dy) < param.minSpace * 0.5)
+					tree.Merge(tree.Parent(id0), tree.Parent(id1));
+			}
+		}
+	}
+	std::vector<Vector2> corners(points.size());
+	for (auto& p : corners) p = Vector2(0, 0);
+	for (int i = 0; i < points.size(); ++i) {
+		corners[tree.Parent(i)] += points[i];
+	}
+	for (int i = 0; i < corners.size(); ++i) {
+		if (tree.Parent(i) == i) {
+			corners[i] /= (double)tree.rank[i];
+		}
+	}
+
+	tree.BuildCompactParent();
+	for (int i = 0; i < corners.size(); ++i) {
+		if (tree.Parent(i) == i) {
+			points[tree.Index(i)] = corners[i];
+		}
+	}
+	points.resize(tree.CompactNum());
+
+	std::vector<Vector3i> faces;
+	Triangulate2D(points, faces);
+
+	tree = DisajointTree(points.size());
+	std::set<std::pair<int, int> > edges, edges1;
+
+	for (int iter = 0; iter < 2; ++iter) {
+		for (int i = 0; i < faces.size(); ++i) {
+			for (int j = 0; j < 3; ++j) {
+				int v0 = tree.Parent(faces[i][j]);
+				int v1 = tree.Parent(faces[i][(j + 1) % 3]);
+				auto p = points[v0];
+				auto p1 = points[v1];
+				int y = p[1];
+				y = std::min(std::max(y, 0), height - 1);
+				int x = p[0];
+				x = std::min(std::max(x, 0), width - 1);
+				int id0 = y * width + x;
+				Vector2 qx = field.tensorFields_[0].orientationField[id0];
+				Vector2 qy(-qx[1], qx[0]);
+				double dx = std::abs((p1 - p).dot(qx) / param.minSpace);
+				double dy = std::abs((p1 - p).dot(qy) / param.minSpace);
+				if (iter == 0 && dx < 0.5 && dy < 0.5) {
+					tree.Merge(v0, v1);
+				}
+				if (iter == 1 && (dx < 0.5 || dy < 0.5)) {
+					if (v0 < v1)
+						edges.insert(std::make_pair(v0, v1));
+					else
+						edges.insert(std::make_pair(v1, v0));
+				}
+			}
+		}
+	}
+
+	tree.BuildCompactParent();
+	for (int i = 0; i < points.size(); ++i) {
+		if (i == tree.Parent(i))
+			corners[tree.Index(i)] = points[i];
+	}
+	std::swap(corners, points);
+
+	for (auto& e : edges) {
+		int v0 = tree.Index(e.first);
+		int v1 = tree.Index(e.second);
+		if (v0 > v1) std::swap(v0, v1);
+		edges1.insert(std::make_pair(v0, v1));
+	}
+	for (auto& e : edges1) links.emplace_back(e.first, e.second);
 }

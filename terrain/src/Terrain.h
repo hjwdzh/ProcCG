@@ -24,6 +24,7 @@ public:
 
 	FlowField field;
 	Road road;
+	RoadSelector selector;
 	int version{1};
 };
 

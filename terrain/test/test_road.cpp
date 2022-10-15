@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	rg.GenerateRoad(param, ff);
 	rg.UpsampleRoadGraph(0, 1, 2);
 	rg.UpsampleRoadGraph(1, 2, 4);
-	rg.SetRoadWidth({5, 10, 30});
+	rg.SetRoadWidth({2, 3, 5});
 	
 	cv::Mat roadMask = rg.road.VisualizeRoadMap();
 	cv::imwrite("road.png", roadMask);

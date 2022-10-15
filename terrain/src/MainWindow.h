@@ -26,6 +26,8 @@ public:
 	Terrain terrain;
 	double weight_;
 	void UpdateFromDrawer();
+	void SelectRoad();
+	void CancelRoad();
 
 	void UpdateStatus(const char* info);
 public slots:
@@ -35,6 +37,9 @@ public slots:
 	void UpdateWeight();
 	// road
 	void GenerateRoad();
+	void AnnotateRoad();
+	void DeleteRoad();
+	void ConnectRoad();
 
 	void TabSelected();
 	void Defocus();
@@ -42,8 +47,8 @@ public slots:
 	// menu
 	void LoadTerrain();
 	void SaveTerrain();
-
-
+private:
+	int shiftPressed_{0};
 };
 
 #endif

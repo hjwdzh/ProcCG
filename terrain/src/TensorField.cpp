@@ -1,5 +1,65 @@
 #include "TensorField.h"
 
+void TensorField::Trace(Vector2 pt1, Vector2 pt2, std::vector<Vector2>& polyline) const
+{
+	double len = (pt2 - pt1).norm();
+	int numSteps = (int)(len + 1);
+	double step = len / numSteps;
+	polyline.push_back(pt1);
+	polyline.push_back(pt2);
+	int counter = 0;
+	while (len > step) {
+		std::vector<Vector2> subdivided;
+		subdivided.push_back(polyline[0]);
+		for (int i = 1; i < polyline.size(); ++i) {
+			subdivided.push_back((polyline[i - 1] + polyline[i]) * 0.5);
+			subdivided.push_back(polyline[i]);
+		}
+		for (int optim = 0; optim < 100; ++optim) {
+			for (int i = 0; i < 2; ++i) {
+				for (int j = i; j < subdivided.size(); j += 2) {
+					if (j == 0 || j == subdivided.size() - 1)
+						continue;
+					Vector2 lp = subdivided[j - 1];
+					Vector2 rp = subdivided[j + 1];
+					Vector2 dir0 = orientationField[(int)lp[1] * width + (int)lp[0]];
+					Vector2 dir1 = orientationField[(int)rp[1] * width + (int)rp[0]];
+					Vector2 dir = (rp - lp).normalized();
+					double len = (rp - lp).norm();
+					dir0 = (SumNRosy(dir0, dir, 4) - dir).normalized();
+					dir1 = (SumNRosy(dir1, dir, 4) - dir).normalized();
+					Vector2 hdir(-dir[1], dir[0]);
+					Vector2 c = (lp + rp) * 0.5;
+					double dx = std::max(dir0.dot(dir), 0.1);
+					double dy = dir0.dot(hdir);
+					double dh0 = 0.5 * len / dx * dy;
+					dx = std::max(dir1.dot(dir), 0.1);
+					dy = -dir1.dot(hdir);
+					double dh1 = 0.5 * len / dx * dy;
+					double dh = (dh0 + dh1) * 0.5;
+					if (dh < 0) {
+						dh = -dh;
+						hdir = -hdir;
+					}
+					
+					double dx0 = (0 - c[0]) / hdir[0];
+					double dy0 = (0 - c[1]) / hdir[1];
+					double dx1 = (width - 1 - c[0]) / hdir[0];
+					double dy1 = (height - 1 - c[1]) / hdir[1];
+					dh = dx0 > -1e-3 ? std::min(dh, dx0) : dh;
+					dh = dy0 > -1e-3 ? std::min(dh, dy0) : dh;
+					dh = dx1 > -1e-3 ? std::min(dh, dx1) : dh;
+					dh = dy1 > -1e-3 ? std::min(dh, dy1) : dh;
+					subdivided[j] = dh * hdir + c;
+				}
+			}
+		}
+		std::swap(polyline, subdivided);
+		counter += 1;
+		len /= 2;
+	}
+}
+
 int TensorField::Trace(Vector2 point, std::vector<Vector2>& polyline, double len, int isMajor, int directions) const
 {
 	std::list<Vector2> pts;
@@ -186,7 +246,6 @@ void TensorField::UpsamplePosition(TensorField& other, double unit)
 		}
 	}
 }
-
 
 void TensorField::OptimizePositionField(double unit)
 {

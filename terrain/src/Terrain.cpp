@@ -128,7 +128,11 @@ cv::Mat Terrain::VisualizeElement()
 	}
 
 	if (road.width > 0) {
-		cv::Mat roadMap = road.VisualizeRoadMap();
+		cv::Mat roadMap;
+		if (selector.selectedCornersConnect.empty())
+		 	roadMap = road.VisualizeRoadMap(&selector.selectedCorners, &selector.selectedLines);
+		else
+			roadMap = road.VisualizeRoadMap(&selector.selectedCornersConnect, &selector.selectedLinesConnect);
 		for (int i = 0; i < roadMap.rows; ++i) {
 			for (int j = 0; j < roadMap.cols; ++j) {
 				cv::Vec3b c = roadMap.at<cv::Vec3b>(i, j);

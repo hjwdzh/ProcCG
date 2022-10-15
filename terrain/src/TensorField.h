@@ -40,6 +40,7 @@ struct TensorField
 	std::vector<double> boundaryWeight, weightNRosy, weight1Rosy;
 	std::vector<Vector2> orientationField, positionField;
 	int Trace(Vector2 point, std::vector<Vector2>& polyline, double len, int isMajor, int directions) const;
+	void Trace(Vector2 pt1, Vector2 pt2, std::vector<Vector2>& polyline) const;
 	void Downsample(TensorField& other);
 	void UpsampleOrientation(TensorField& other);
 	void OptimizeOrientationField();
